@@ -40,7 +40,7 @@ def dologin():
             message = {'message': False}
             return json.dumps(message)
         else:
-            session['username'] = username
+            session['user'] = user
             message = {'message': True}
             return json.dumps(message)
     else:
@@ -53,7 +53,7 @@ def dologout():
     userjson = request.json
     username = userjson.get('username')
     if username in session:
-        session.pop('username', None)
+        session.pop('user', None)
     message = {'message': True}
     return json.dumps(message)
 
@@ -116,3 +116,6 @@ def doremovefriends():
     else:
         message = {'message': False}
         return json.dumps(message)
+
+
+app.secret_key = '\xcd\x1d\x07*\x82\xfe\xeeG\x93\x10\x8c~l\x1d\xb0\xa3\xce\xf2Nf\xc1[\x8e\xd4'
