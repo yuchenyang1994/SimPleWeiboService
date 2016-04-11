@@ -59,7 +59,7 @@ class User(Base, Subject, Observer, DisplayElement):
             session.add(Blog)
             session.commit()
             session.close()
-        self.Change = False
+            self.Change = False
         return
 
     def display(self):
