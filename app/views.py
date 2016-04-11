@@ -1,5 +1,5 @@
 # -*- coding:utf-8 -*-
-from flask import request
+from flask import request, session
 from flask.json import jsonify
 
 from app import app
@@ -29,18 +29,33 @@ def get_users():
 
 @app.route('/users/dologin', methods=['POST'])
 def dologin():
-    session = DBSession()
+    dbsession = DBSession()
     userjson = request.json
     username = userjson.get('username')
     userpassword = userjson.get('password')
-    user = session.query(User).filter(User.username == username, User.password == userpassword).first()
-    session.close()
-    if user is None:
+    if username not in session:
+        user = dbsession.query(User).filter(User.username == username, User.password == userpassword).first()
+        dbsession.close()
+        if user is None:
+            message = {'message': False}
+            return json.dumps(message)
+        else:
+            session['username'] = username
+            message = {'message': True}
+            return json.dumps(message)
+    else:
         message = {'message': False}
         return json.dumps(message)
-    else:
-        message = {'message': True}
-        return json.dumps(message)
+
+
+@app.route('/users/dologout', methods=['POST'])
+def dologout():
+    userjson = request.json
+    username = userjson.get('username')
+    if username in session:
+        session.pop('username', None)
+    message = {'message': True}
+    return json.dumps(message)
 
 
 @app.route('/users/doregister', methods=['POST'])
