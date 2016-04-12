@@ -1,9 +1,10 @@
 # -*- coding:utf-8 -*-
+import datetime
+from MySQLdb.times import Date
 from flask import request, session
-from flask.json import jsonify
 
 from app import app
-from app.Model import User, UserFriend
+from app.Model import User, UserFriend, Blog
 from app.databases import DBSession
 import json
 
@@ -117,5 +118,34 @@ def doremovefriends():
         message = {'message': False}
         return json.dumps(message)
 
+@app.route('/users/writeblog',methods=['POST'])
+def writeblogs():
+    dbsession = DBSession()
+    writeblogs = request.json
+    user_id = writeblogs.get('user_id')
+    content = writeblogs.get('content')
+    fromBlog_id = writeblogs.get('fromBlog_id')
+    fromUser_id = writeblogs.get('fromUser_id')
+    fowardNum = 0
+    issueTime = Date.today()
+    blog = Blog(user_id,content,fromBlog_id,fromUser_id,fowardNum,issueTime)
+    session.add(blog)
+    dbsession.commit()
+    dbsession.close()
+
+@app.route('/users/getallblog',methods=['POST'])
+def getallblog():
+    dbSession = DBSession()
+    blogs = dbSession.query(Blog).all()
+    blogjson = {}
+    for blog in blogs:
+        userid = blog.user_id
+        user = dbSession.query(User).filter(User.id == userid).one()
+        username = user.username
+        task = blog.__dict__
+        task.pop('_sa_instance_state')
+        blogjson['username']=task
+    dbSession.close()
+    return json.dumps(task)
 
 app.secret_key = '\xcd\x1d\x07*\x82\xfe\xeeG\x93\x10\x8c~l\x1d\xb0\xa3\xce\xf2Nf\xc1[\x8e\xd4'
