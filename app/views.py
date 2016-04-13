@@ -1,10 +1,11 @@
 # -*- coding:utf-8 -*-
-import datetime
-from MySQLdb.times import Date
+import time
+from datetime import datetime
+
 from flask import request, session
 
 from app import app
-from app.Model import User, UserFriend, Blog
+from app.Model import User, UserFriend, Blog, Answer
 from app.databases import DBSession
 import json
 
@@ -17,14 +18,14 @@ def index():
 
 @app.route('/users', methods=['GET'])
 def get_users():
-    session = DBSession()
-    users = session.query(User).all()
-    userjson = {}
+    dbsession = DBSession()
+    users = dbsession.query(User).all()
+    userjson = []
     for user in users:
         task = user.__dict__
         task.pop('_sa_instance_state')
-        userjson[user.id] = task
-    session.close()
+        userjson.append(task)
+    dbsession.close()
     return json.dumps(userjson, encoding='utf-8')
 
 
@@ -42,7 +43,7 @@ def dologin():
             return json.dumps(message)
         else:
             session['user'] = user
-            message = {'message': True}
+            message = {'message': True,'user_id':user.id}
             return json.dumps(message)
     else:
         message = {'message': False}
@@ -61,37 +62,38 @@ def dologout():
 
 @app.route('/users/doregister', methods=['POST'])
 def doregister():
-    session = DBSession()
+    dbsession = DBSession()
     userjson = request.json
     username = userjson.get('username')
     password = userjson.get('password')
     sex = userjson.get('sex')
     photo = userjson.get('photo')
     adduser = User(username, password, sex, photo)
-    user = session.query(User).filter(User.username == username)
+    user = dbsession.query(User).filter(User.username == username)
     if user is not None:
         message = {"message": False}
-        session.close()
+        dbsession.close()
         return json.dumps(message)
     else:
-        session.add(adduser)
-        session.commit()
-        session.close()
+        dbsession.add(adduser)
+        dbsession.commit()
+        dbsession.close()
         message = {"message": True}
         return json.dumps(message)
 
 
 @app.route('/users/addfriend', methods=['POST'])
 def doaddfriends():
-    session = DBSession()
+    dbsession = DBSession()
     friendsjson = request.json
     user_id = friendsjson.get('user_id')
     friends_id = friendsjson.get('friends_id')
-    friend = session.query(UserFriend).filter(UserFriend.user_id == user_id, UserFriend.friend_id == friends_id).first()
+    friend = dbsession.query(UserFriend).filter(UserFriend.user_id == user_id,
+                                                UserFriend.friend_id == friends_id).first()
     if friend is None:
-        user = session.query(User).filter(User.id == user_id).one()
-        friend = session.query(User).filter(User.id == friends_id).one()
-        session.close()
+        user = dbsession.query(User).filter(User.id == user_id).one()
+        friend = dbsession.query(User).filter(User.id == friends_id).one()
+        dbsession.close()
         friend.registerObserver(user)
         message = {'message': True}
         return json.dumps(message)
@@ -102,15 +104,16 @@ def doaddfriends():
 
 @app.route('/users/removefriend', methods=['POST'])
 def doremovefriends():
-    session = DBSession()
+    dbsession = DBSession()
     friendsjson = request.json
     user_id = friendsjson.get('user_id')
     friends_id = friendsjson.get('friends_id')
-    friend = session.query(UserFriend).filter(UserFriend.user_id == user_id, UserFriend.friend_id == friends_id).first()
+    friend = dbsession.query(UserFriend).filter(UserFriend.user_id == user_id,
+                                                UserFriend.friend_id == friends_id).first()
     if friend is not None:
-        friends = session.query(User).filter(User.id == friends_id).one()
-        users = session.query(User).filter(User.id == user_id).one()
-        session.close()
+        friends = dbsession.query(User).filter(User.id == friends_id).one()
+        users = dbsession.query(User).filter(User.id == user_id).one()
+        dbsession.close()
         friends.removeObserver(users)
         message = {'message': True}
         return json.dumps(message)
@@ -118,8 +121,80 @@ def doremovefriends():
         message = {'message': False}
         return json.dumps(message)
 
-@app.route('/users/writeblog',methods=['POST'])
+
+@app.route('/users/writeblog', methods=['POST'])
 def writeblogs():
+    dbsession = DBSession()
+    writeblogs = request.json
+    user_id = writeblogs.get('user_id')
+    content = writeblogs.get('content')
+    fromBlog_id = 1
+    fromUser_id = user_id
+    fowardNum = 0
+    issueTime = datetime.now().date()
+    blog = Blog(user_id, content, fromBlog_id, fromUser_id, fowardNum, issueTime)
+    dbsession.add(blog)
+    dbsession.commit()
+    dbsession.close()
+    message = {'message': True}
+    return json.dumps(message)
+
+
+@app.route('/users/getallblog', methods=['GET'])
+def getallblog():
+    dbSession = DBSession()
+    blogs = dbSession.query(Blog).all()
+    blogjson = []
+    for blog in blogs:
+        userid = blog.user_id
+        user = dbSession.query(User).filter(User.id == userid).one()
+        username = user.username
+        task = blog.__dict__
+        task.pop('_sa_instance_state')
+        d = task.get('issueTime')
+        t = d.strftime("%Y-%m-%d")
+        task['issueTime'] = t
+        friend_id = blog.user_id
+        friend = dbSession.query(User).filter(User.id == friend_id).one()
+        friend_name = friend.username
+        task['user_id'] = friend_name
+        if blog.fromBlog_id > 1:
+            forward_blog = dbSession.query(Blog).filter(Blog.id == blog.fromBlog_id).one()
+            task['forward_content'] = forward_blog.content
+        blogjson.append(task)
+    dbSession.close()
+    return json.dumps(blogjson)
+
+
+@app.route('/users/getfriendblogs', methods=['POST'])
+def getfriendblog():
+    dbsession = DBSession()
+    userid = request.json
+    user_id = userid.get('user_id')
+    user = dbsession.query(User).filter(User.id == user_id).one()
+    blogs = user.display()
+    print blogs
+    blogjson = []
+    for blog in blogs:
+        task = blog.__dict__
+        task.pop('_sa_instance_state')
+        d = task.get('issueTime')
+        t = d.strftime("%Y-%m-%d")
+        task['issueTime'] = t
+        friend_id = blog.user_id
+        friend = dbsession.query(User).filter(User.id == friend_id).one()
+        friend_name = friend.username
+        task['user_id'] = friend_name
+        if blog.fromBlog_id > 1:
+            forward_blog = dbsession.query(Blog).filter(Blog.id == blog.fromBlog_id).one()
+            task['forward_content'] = forward_blog.content
+        blogjson.append(task)
+    dbsession.close()
+    return json.dumps(blogjson)
+
+
+@app.route('/user/fowardblog', methods=['POST'])
+def fowardblog():
     dbsession = DBSession()
     writeblogs = request.json
     user_id = writeblogs.get('user_id')
@@ -127,25 +202,53 @@ def writeblogs():
     fromBlog_id = writeblogs.get('fromBlog_id')
     fromUser_id = writeblogs.get('fromUser_id')
     fowardNum = 0
-    issueTime = Date.today()
-    blog = Blog(user_id,content,fromBlog_id,fromUser_id,fowardNum,issueTime)
-    session.add(blog)
+    issueTime = datetime.now().date()
+    blog = Blog(user_id, content, fromBlog_id, fromUser_id, fowardNum, issueTime)
+    dbsession.add(blog)
     dbsession.commit()
     dbsession.close()
+    message = {'message': True}
+    return json.dumps(message)
 
-@app.route('/users/getallblog',methods=['POST'])
-def getallblog():
+
+@app.route('/user/addanswer',methods=['POST'])
+def addanswer():
     dbSession = DBSession()
-    blogs = dbSession.query(Blog).all()
-    blogjson = {}
-    for blog in blogs:
-        userid = blog.user_id
-        user = dbSession.query(User).filter(User.id == userid).one()
-        username = user.username
-        task = blog.__dict__
-        task.pop('_sa_instance_state')
-        blogjson['username']=task
+    addanswerjson = request.json
+    fromUser_id = addanswerjson.get('fromUser_id')
+    toUser_id = addanswerjson.get('toUser_id')
+    blog_id = addanswerjson.get('blog_id')
+    content = addanswerjson.get('content')
+    resTime = datetime.now().date()
+    answer = Answer(fromUser_id, toUser_id, blog_id, content, resTime)
+    dbSession.add(answer)
+    dbSession.commit()
     dbSession.close()
-    return json.dumps(task)
+    message = {'message': True}
+    return json.dumps(message)
+
+
+
+@app.route('/user/getanswer',methods=['POST'])
+def getanswer():
+    dbSession = DBSession()
+    getanswer = request.json
+    blog_id = getanswer.get('blog_id')
+    answers = dbSession.query(Answer).filter(Answer.blog_id == blog_id).all()
+    ansersjson = []
+    for answer in answers:
+        task = answer.__dict__
+        task.pop('_sa_instance_state')
+        fromUser = dbSession.query(Answer).filter(Answer.fromUser_id == answer.fromUser_id).one()
+        toUser = dbSession.query(Answer).filter(Answer.toUser_id == answer.toUser_id).one()
+        if toUser.id > 1:
+            task['toUsername'] = toUser.username
+        task['from_User_name'] = fromUser.username
+        ansersjson.append(task)
+    return json.dumps(ansersjson)
+
+
+
+
 
 app.secret_key = '\xcd\x1d\x07*\x82\xfe\xeeG\x93\x10\x8c~l\x1d\xb0\xa3\xce\xf2Nf\xc1[\x8e\xd4'

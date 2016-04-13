@@ -64,11 +64,10 @@ class User(Base, Subject, Observer, DisplayElement):
     def display(self):
         session = DBSession()
         userfriends = session.query(UserFriend).filter(UserFriend.user_id == self.id).all()
-        blogs = []
+        blogs = None
         for item in userfriends:
             friends_id = item.friend_id
-            blog = session.query(Blog).filter(Blog.user_id == friends_id).all()
-            blogs.append(blog)
+            blogs = session.query(Blog).filter(Blog.user_id == friends_id).all()
         session.close()
         return blogs
 

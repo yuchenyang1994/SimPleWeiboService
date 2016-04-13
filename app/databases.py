@@ -7,5 +7,5 @@ from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
 
-engine = create_engine('mysql+mysqldb://root:940304@localhost:3305/simpleweibo?')
+engine = create_engine('mysql+mysqldb://root:940304@localhost:3305/simpleweibo?charset=utf8')
 DBSession = sessionmaker(bind=engine)
