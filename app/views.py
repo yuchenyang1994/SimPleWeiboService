@@ -161,7 +161,7 @@ def getallblog():
     return json.dumps(blogjson)
 
 
-@app.route('/users/getfriendblogs/<int:user_id>', methods=['Get'])
+@app.route('/users/getfriendblogs/<int:user_id>', methods=['GET'])
 def getfriendblog(user_id):
     dbsession = DBSession()
     user = dbsession.query(User).filter(User.id == user_id).one()
@@ -187,6 +187,26 @@ def getfriendblog(user_id):
     return json.dumps(blogjson)
 
 
+@app.route('/users/getblogs/<int:blog_id>', methods=['GET'])
+def getblogbyid(blog_id):
+    dbsession = DBSession()
+    blog = dbsession.query(Blog).filter(Blog.id == blog_id).one()
+    user = dbsession.query(User).filter(User.id == blog.user_id).one()
+    print blog
+    task = blog.__dict__
+    task.pop('_sa_instance_state')
+    d = task.get('issueTime')
+    t = d.strftime("%Y-%m-%d")
+    task['issueTime'] = t
+    task['user_name'] = user.username
+    task['user_photo'] = user.photo
+    if blog.fromBlog_id > 1:
+        forward_blog = dbsession.query(Blog).filter(Blog.id == blog.fromBlog_id).one()
+        task['forward_content'] = forward_blog.content
+    dbsession.close()
+    return json.dumps(task)
+
+
 @app.route('/user/fowardblog', methods=['POST'])
 def fowardblog():
     dbsession = DBSession()
@@ -210,7 +230,7 @@ def addanswer():
     dbSession = DBSession()
     addanswerjson = request.json
     fromUser_id = addanswerjson.get('fromUser_id')
-    toUser_id = addanswerjson.get('toUser_id')
+    toUser_id = 1
     blog_id = addanswerjson.get('blog_id')
     content = addanswerjson.get('content')
     resTime = datetime.now().date()
@@ -230,8 +250,8 @@ def getanswer(blog_id):
     for answer in answers:
         task = answer.__dict__
         task.pop('_sa_instance_state')
-        fromUser = dbSession.query(Answer).filter(Answer.fromUser_id == answer.fromUser_id).one()
-        toUser = dbSession.query(Answer).filter(Answer.toUser_id == answer.toUser_id).one()
+        fromUser = dbSession.query(Answer).filter(Answer.fromUser_id == answer.fromUser_id).first()
+        toUser = dbSession.query(Answer).filter(Answer.toUser_id == answer.toUser_id).first()
         if toUser.id > 1:
             task['toUsername'] = toUser.username
         task['from_User_name'] = fromUser.username
