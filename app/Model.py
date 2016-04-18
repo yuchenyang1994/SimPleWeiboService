@@ -12,7 +12,7 @@ class User(Base, Subject, Observer, DisplayElement):
     username = Column(String(50))
     password = Column(String(50))
     sex = Column(String(50))
-    photo = Column(String(255))
+    photo = Column(String)
     friends = relationship('UserFriend')
 
     def __init__(self, username, password, sex, photo):
@@ -64,10 +64,10 @@ class User(Base, Subject, Observer, DisplayElement):
     def display(self):
         session = DBSession()
         userfriends = session.query(UserFriend).filter(UserFriend.user_id == self.id).all()
-        blogs = None
+        blogs = []
         for item in userfriends:
             friends_id = item.friend_id
-            blogs = session.query(Blog).filter(Blog.user_id == friends_id).all()
+            blogs.append(session.query(Blog).filter(Blog.user_id == friends_id).all())
         session.close()
         return blogs
 
@@ -123,13 +123,13 @@ class Answer(Base):
     id = Column(Integer(), primary_key=True)
     fromUser_id = Column(Integer(), ForeignKey('User.id'))
     toUser_id = Column(Integer(), ForeignKey('User.id'))
-    blog_id = Column(Integer(), ForeignKey('Blog.id'))
+    bolg_id = Column(Integer(), ForeignKey('Blog.id'))
     content = Column(String(50))
     resTime = Column(DateTime)
 
     def __init__(self, fromUser_id, toUser_id, blog_id, content, resTime):
         self.fromUser_id = fromUser_id
         self.toUser_id = toUser_id
-        self.blog_id = blog_id
+        self.bolg_id = blog_id
         self.content = content
         self.resTime = resTime

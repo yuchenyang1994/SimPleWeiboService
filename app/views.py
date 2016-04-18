@@ -165,24 +165,25 @@ def getallblog():
 def getfriendblog(user_id):
     dbsession = DBSession()
     user = dbsession.query(User).filter(User.id == user_id).one()
-    blogs = user.display()
-    print blogs
+    bloges = user.display()
+    print bloges
     blogjson = []
-    for blog in blogs:
-        task = blog.__dict__
-        task.pop('_sa_instance_state')
-        d = task.get('issueTime')
-        t = d.strftime("%Y-%m-%d")
-        task['issueTime'] = t
-        friend_id = blog.user_id
-        friend = dbsession.query(User).filter(User.id == friend_id).one()
-        friend_name = friend.username
-        task['user_name'] = friend_name
-        task['user_photo'] = friend.photo
-        if blog.fromBlog_id > 1:
-            forward_blog = dbsession.query(Blog).filter(Blog.id == blog.fromBlog_id).one()
-            task['forward_content'] = forward_blog.content
-        blogjson.append(task)
+    for blogs in bloges:
+        for blog in blogs:
+            task = blog.__dict__
+            task.pop('_sa_instance_state')
+            d = task.get('issueTime')
+            t = d.strftime("%Y-%m-%d")
+            task['issueTime'] = t
+            friend_id = blog.user_id
+            friend = dbsession.query(User).filter(User.id == friend_id).one()
+            friend_name = friend.username
+            task['user_name'] = friend_name
+            task['user_photo'] = friend.photo
+            if blog.fromBlog_id > 1:
+                forward_blog = dbsession.query(Blog).filter(Blog.id == blog.fromBlog_id).one()
+                task['forward_content'] = forward_blog.content
+            blogjson.append(task)
     dbsession.close()
     return json.dumps(blogjson)
 
@@ -234,24 +235,32 @@ def addanswer():
     blog_id = addanswerjson.get('blog_id')
     content = addanswerjson.get('content')
     resTime = datetime.now().date()
-    answer = Answer(fromUser_id, toUser_id, blog_id, content, resTime)
-    dbSession.add(answer)
-    dbSession.commit()
-    dbSession.close()
-    message = {'message': True}
-    return json.dumps(message)
+    if content is not '' and not None:
+        answer = Answer(fromUser_id, toUser_id, blog_id, content, resTime)
+        dbSession.add(answer)
+        dbSession.commit()
+        dbSession.close()
+        message = {'message': True}
+        return json.dumps(message)
+    else:
+        message = {'message':False}
+        return json.dumps(message)
 
 
 @app.route('/user/getanswer/<int:blog_id>', methods=['GET'])
 def getanswer(blog_id):
     dbSession = DBSession()
-    answers = dbSession.query(Answer).filter(Answer.blog_id == blog_id).all()
+    answers = dbSession.query(Answer).filter(Answer.bolg_id == blog_id).all()
     ansersjson = []
     for answer in answers:
         task = answer.__dict__
         task.pop('_sa_instance_state')
-        fromUser = dbSession.query(Answer).filter(Answer.fromUser_id == answer.fromUser_id).first()
-        toUser = dbSession.query(Answer).filter(Answer.toUser_id == answer.toUser_id).first()
+        d = task.get('resTime')
+        t = d.strftime("%Y-%m-%d")
+        task['resTime'] = t
+        fromUser = dbSession.query(User).filter(User.id== answer.fromUser_id).first()
+        toUser = dbSession.query(User).filter(User.id == answer.toUser_id).first()
+
         if toUser.id > 1:
             task['toUsername'] = toUser.username
         task['from_User_name'] = fromUser.username
