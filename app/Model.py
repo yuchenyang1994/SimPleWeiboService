@@ -41,25 +41,6 @@ class User(Base, Subject, Observer, DisplayElement):
         session.close()
         return
 
-    # def notyfiObserver(self, Blog):
-    #     session = DBSession()
-    #     friends = session.query(UserFriend).filter(UserFriend.user_id == self.id).all()
-    #     for i in friends:
-    #         friendsobj = session.query(User).filter(User.id == i.friend_id).all()
-    #         self.Observers = friendsobj
-    #     for item in self.Observers:
-    #         item.update(Blog)
-    #     session.close()
-    #     return
-
-    def update(self, Blog):
-        if self.Change:
-            session = DBSession()
-            session.add(Blog)
-            session.commit()
-            session.close()
-            self.Change = False
-        return
 
     def display(self):
         session = DBSession()
@@ -70,11 +51,6 @@ class User(Base, Subject, Observer, DisplayElement):
             blogs.append(session.query(Blog).filter(Blog.user_id == friends_id).all())
         session.close()
         return blogs
-
-    # def setChange(self, Blog):
-    #     self.Change = True
-    #     self.update(Blog)
-    #     return
 
 
 class UserFriend(Base):

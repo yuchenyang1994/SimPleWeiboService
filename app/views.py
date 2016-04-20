@@ -1,19 +1,29 @@
 # -*- coding:utf-8 -*-
+import base64
+import os
 import time
 from datetime import datetime
 
-from flask import request, session
+from flask import request, session, url_for, send_from_directory, render_template
 
 from app import app
 from app.Model import User, UserFriend, Blog, Answer
 from app.databases import DBSession
 import json
 
+UPLOAD_FOLDER = '/image/'
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+
+@app.route('/<path:path>')
+def send_image(path):
+    return send_from_directory('static/', path)
+
 
 @app.route('/')
 @app.route('/index')
 def index():
-    return "Hello,World"
+    return render_template('index.html')
 
 
 @app.route('/users/getuserinfo/<int:user_id>', methods=['GET'])
@@ -243,7 +253,7 @@ def addanswer():
         message = {'message': True}
         return json.dumps(message)
     else:
-        message = {'message':False}
+        message = {'message': False}
         return json.dumps(message)
 
 
@@ -258,7 +268,7 @@ def getanswer(blog_id):
         d = task.get('resTime')
         t = d.strftime("%Y-%m-%d")
         task['resTime'] = t
-        fromUser = dbSession.query(User).filter(User.id== answer.fromUser_id).first()
+        fromUser = dbSession.query(User).filter(User.id == answer.fromUser_id).first()
         toUser = dbSession.query(User).filter(User.id == answer.toUser_id).first()
 
         if toUser.id > 1:
@@ -266,6 +276,26 @@ def getanswer(blog_id):
         task['from_User_name'] = fromUser.username
         ansersjson.append(task)
     return json.dumps(ansersjson)
+
+
+@app.route('/user/uploadphoto', methods=['POST'])
+def upload_file():
+    imagejson = request.json
+    user_id = imagejson.get('user_id')
+    user_photo = imagejson.get('user_photo')
+    dbsession = DBSession()
+    photodata = base64.b64decode(user_photo)
+    path = os.path.join(os.path.dirname(__file__), os.path.pardir)
+    pathpartent = os.path.abspath(path) + '/static/'
+    image = open(pathpartent + str(user_id) + '.png', 'wb')
+    image.write(photodata)
+    image.close()
+    dbsession = DBSession()
+    dbsession.query(User).filter(User.id == user_id).update({'photo':'http://192.168.1.112:5000/static/'+str(user_id)+'.png'})
+    dbsession.commit()
+    dbsession.close()
+    message = {"message": True}
+    return json.dumps(message)
 
 
 app.secret_key = '\xcd\x1d\x07*\x82\xfe\xeeG\x93\x10\x8c~l\x1d\xb0\xa3\xce\xf2Nf\xc1[\x8e\xd4'

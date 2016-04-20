@@ -16,7 +16,7 @@ class Subject(object):
 
 class Observer(object):
 
-    def update(self,Blog):
+    def updateblog(self,Blog):
         pass
 
 class DisplayElement(object):
