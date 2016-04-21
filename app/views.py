@@ -7,7 +7,7 @@ from datetime import datetime
 from flask import request, session, url_for, send_from_directory, render_template
 
 from app import app
-from app.Model import User, UserFriend, Blog, Answer
+from app.Model import User, UserFriend, Blog, Answer, BlogImage
 from app.databases import DBSession
 import json
 
@@ -69,7 +69,7 @@ def doregister():
     username = userjson.get('username')
     password = userjson.get('password')
     sex = userjson.get('sex')
-    photo = 'photo'
+    photo = 'http://192.168.1.112:5000/2.png'
     print sex
     adduser = User(username, password, sex, photo)
     user = dbsession.query(User).filter(User.username == username).first()
@@ -132,12 +132,23 @@ def writeblogs():
     writeblogs = request.json
     user_id = writeblogs.get('user_id')
     content = writeblogs.get('content')
+    blog_imagejson = writeblogs.get('blog_image')
     fromBlog_id = 1
     fromUser_id = user_id
     fowardNum = 0
     issueTime = datetime.now().date()
     blog = Blog(user_id, content, fromBlog_id, fromUser_id, fowardNum, issueTime)
     dbsession.add(blog)
+    dbsession.flush()
+    if blog_imagejson is not '':
+        imagedata = base64.b64decode(blog_imagejson)
+        path = os.path.join(os.path.dirname(__file__), os.path.pardir)
+        pathpartent = os.path.abspath(path) + '/static/' + 'blog_' + str(blog.id)
+        image = open(pathpartent + '.png', 'wb')
+        image.write(imagedata)
+        image.close()
+        blogimage = BlogImage('http://192.168.1.112:5000' + '/static/' + 'blog_' + str(blog.id) + '.png', blog.id)
+        dbsession.add(blogimage)
     dbsession.commit()
     dbsession.close()
     message = {'message': True}
@@ -291,11 +302,24 @@ def upload_file():
     image.write(photodata)
     image.close()
     dbsession = DBSession()
-    dbsession.query(User).filter(User.id == user_id).update({'photo':'http://192.168.1.112:5000/static/'+str(user_id)+'.png'})
+    dbsession.query(User).filter(User.id == user_id).update(
+        {'photo': 'http://192.168.1.112:5000/static/' + str(user_id) + '.png'})
     dbsession.commit()
     dbsession.close()
     message = {"message": True}
     return json.dumps(message)
+
+
+@app.route('/user/getblogimage/<int:blog_id>', methods=['GET'])
+def getblogimage(blog_id):
+    dbsession = DBSession()
+    blogimages = dbsession.query(BlogImage).filter(BlogImage.blog_id == blog_id).all()
+    blogimagejson = []
+    for blogimage in blogimages:
+        task = blogimage.__dict__
+        task.pop('_sa_instance_state')
+        blogimagejson.append(task)
+    return json.dumps(blogimagejson)
 
 
 app.secret_key = '\xcd\x1d\x07*\x82\xfe\xeeG\x93\x10\x8c~l\x1d\xb0\xa3\xce\xf2Nf\xc1[\x8e\xd4'
