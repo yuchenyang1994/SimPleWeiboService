@@ -322,4 +322,18 @@ def getblogimage(blog_id):
     return json.dumps(blogimagejson)
 
 
+@app.route('/users/getfriends/<int:user_id>',methods=['GET'])
+def getuserfriend(user_id):
+    dbsession = DBSession()
+    userfriends = dbsession.query(UserFriend).filter(UserFriend.user_id == user_id).all()
+    userjson = []
+    for userfrined in userfriends:
+        friend_id = userfrined.friend_id
+        user = dbsession.query(User).filter(User.id == friend_id).first()
+        task = user.__dict__
+        task.pop('_sa_instance_state')
+        task.pop('password')
+        userjson.append(task)
+    return json.dumps(userjson)
+
 app.secret_key = '\xcd\x1d\x07*\x82\xfe\xeeG\x93\x10\x8c~l\x1d\xb0\xa3\xce\xf2Nf\xc1[\x8e\xd4'
